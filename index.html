@@ -65,11 +65,11 @@ addEventListener("mousedown", e => {
 });
 
 const characters = [
-  { id:"kael", name:"Kael", subtitle:"Balanced dagger fighter", color:"#62d479", accent:"#b8ffd0", speed:5, jump:15, maxHp:110, attackDamage:[7,8,10,15], attackRange:62, attackCooldown:18, knockback:7 },
-  { id:"riven", name:"Riven", subtitle:"Fast rushdown", color:"#62b7ff", accent:"#d7f0ff", speed:6.4, jump:14, maxHp:90, attackDamage:[6,6,8,12], attackRange:56, attackCooldown:14, knockback:5.5 },
-  { id:"brakk", name:"Brakk", subtitle:"Heavy brawler", color:"#ff8b47", accent:"#ffd1ad", speed:4.2, jump:13, maxHp:135, attackDamage:[9,10,12,20], attackRange:70, attackCooldown:24, knockback:10 },
-  { id:"mira", name:"Mira", subtitle:"Long poke range", color:"#c982ff", accent:"#eed0ff", speed:5.2, jump:15, maxHp:100, attackDamage:[6,8,9,14], attackRange:82, attackCooldown:20, knockback:7.5 },
-  { id:"nyx", name:"Nyx", subtitle:"Glass cannon assassin", color:"#ff5fa8", accent:"#ffd0e7", speed:6.8, jump:16, maxHp:82, attackDamage:[8,8,11,18], attackRange:58, attackCooldown:15, knockback:8 }
+  { id:"sharpness", name:"Sharpness", subtitle:"Clean sword-pressure fighter", weapon:"Netherite Sword", technique:"Sharpness Rush", weaponKind:"sword", color:"#45f5d6", accent:"#d9fff7", speed:5.7, jump:15, maxHp:108, attackDamage:[7,8,10,16], attackRange:66, attackCooldown:16, knockback:7.2 },
+  { id:"clownpierce", name:"ClownPierce", subtitle:"High-damage assassin", weapon:"Crimson Scythe", technique:"Pierce Chain", weaponKind:"scythe", color:"#d7193f", accent:"#ffd6df", speed:6.2, jump:16, maxHp:88, attackDamage:[9,9,12,22], attackRange:70, attackCooldown:17, knockback:9.5 },
+  { id:"minutetech", name:"MinuteTech", subtitle:"Fast timing and movement", weapon:"Pearl Blade", technique:"Minute Dash", weaponKind:"blade", color:"#44a7ff", accent:"#d2ebff", speed:7.0, jump:16, maxHp:92, attackDamage:[6,7,9,14], attackRange:58, attackCooldown:13, knockback:5.8 },
+  { id:"parrot", name:"Parrot", subtitle:"Trap-smart ranged control", weapon:"Crossbow", technique:"Trap Check", weaponKind:"crossbow", color:"#7fe65e", accent:"#e4ffd9", speed:5.0, jump:15, maxHp:105, attackDamage:[6,8,10,15], attackRange:86, attackCooldown:21, knockback:8 },
+  { id:"marlow", name:"Marlow", subtitle:"Heavy axe shield-breaker", weapon:"War Axe", technique:"Axe Break", weaponKind:"axe", color:"#b778ff", accent:"#edd7ff", speed:4.5, jump:14, maxHp:130, attackDamage:[9,10,13,21], attackRange:72, attackCooldown:24, knockback:11 }
 ];
 
 const difficulties = [
@@ -258,6 +258,26 @@ function drawStage(){
   ctx.fillStyle = "#202020"; ctx.fillRect(0, groundY(), canvas.width, canvas.height-groundY());
   ctx.fillStyle = "rgba(255,255,255,.08)"; ctx.fillRect(0, groundY(), canvas.width, 4);
 }
+function drawWeapon(f, preview=false){
+  const dir = f.facing || 1;
+  const active = f.attackTimer > 0 || preview;
+  const reach = active ? 28 + (f.combo || 1) * 6 : 22;
+  ctx.strokeStyle = f.char.accent;
+  ctx.fillStyle = f.char.accent;
+  ctx.lineWidth = f.char.weaponKind === "axe" || f.char.weaponKind === "scythe" ? 6 : 4;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  if (f.char.weaponKind === "crossbow") {
+    ctx.moveTo(dir * 4, -4); ctx.lineTo(dir * 28, -4); ctx.moveTo(dir * 17, -14); ctx.lineTo(dir * 17, 8);
+  } else if (f.char.weaponKind === "axe") {
+    ctx.moveTo(dir * 5, -4); ctx.lineTo(dir * reach, 12); ctx.moveTo(dir * reach, 12); ctx.lineTo(dir * (reach - 12), -5);
+  } else if (f.char.weaponKind === "scythe") {
+    ctx.moveTo(dir * 5, -4); ctx.lineTo(dir * reach, 10); ctx.moveTo(dir * reach, 10); ctx.quadraticCurveTo(dir * (reach + 18), -10, dir * (reach - 2), -22);
+  } else {
+    ctx.moveTo(dir * 5, -4); ctx.lineTo(dir * reach, 5);
+  }
+  ctx.stroke();
+}
 function drawFighter(f, preview=false){
   ctx.save(); ctx.translate(f.x+f.w/2, f.y+f.h/2);
   if (f.hurtTimer > 0) ctx.translate(Math.sin(Date.now()/25)*3, 0);
@@ -266,11 +286,7 @@ function drawFighter(f, preview=false){
   ctx.beginPath(); ctx.roundRect(-f.w/2, -f.h/2+18, f.w, 54, 10); ctx.fill();
   ctx.beginPath(); ctx.arc(0, -f.h/2+8, 18, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = "#111"; ctx.fillRect(f.facing*5, -f.h/2+4, 8*f.facing, 4);
-  ctx.strokeStyle = f.char.accent; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath();
-  if (f.attackTimer > 0 || preview) { const reach = 26 + (f.combo || 1)*5; ctx.moveTo(f.facing*4,-4); ctx.lineTo(f.facing*reach,4+(f.combo||1)*2); }
-  else if (f.blocking) { ctx.moveTo(f.facing*6,-2); ctx.lineTo(f.facing*22,-14); }
-  else { ctx.moveTo(f.facing*5,-2); ctx.lineTo(f.facing*19,14); }
-  ctx.stroke();
+  drawWeapon(f, preview);
   if (f.blocking) { ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.facing*27,2,19,-1.3,1.3); ctx.stroke(); }
   ctx.restore();
   if (!preview && f.attackTimer > 0) { const b = attackBox(f); ctx.fillStyle = "rgba(255,255,255,.08)"; ctx.fillRect(b.x,b.y,b.w,b.h); }
@@ -286,7 +302,7 @@ function drawTitle(txt, sub){
 function drawMode(){
   clickZones = []; ui.style.display = "none"; drawStage(); centerText.textContent = "Choose mode — scroll if needed";
   ctx.save(); ctx.translate(0, -menuScroll);
-  drawTitle("AI BATTLEGROUNDS", "Pick PvP or PvAI. You can click buttons now.");
+  drawTitle("AI BATTLEGROUNDS", "Fan-made Minecraft PvP roster. Pick PvP or PvAI.");
   const cx = canvas.width/2;
   button(cx-330,180,300,90,"1  PvP", () => { gameMode="pvp"; goSelect(); }, gameMode==="pvp", "two humans, same keyboard");
   button(cx+30,180,300,90,"2  PvAI", () => { gameMode="pvai"; goSelect(); }, gameMode==="pvai", "fight a selectable AI");
@@ -301,35 +317,36 @@ function drawCharCard(x,y,w,h,char,selected,label,onClick){
   ctx.fillStyle = selected ? "rgba(255,255,255,.20)" : "rgba(0,0,0,.34)";
   ctx.strokeStyle = selected ? char.color : "rgba(255,255,255,.24)"; ctx.lineWidth = selected ? 4 : 2;
   ctx.beginPath(); ctx.roundRect(x,y,w,h,16); ctx.fill(); ctx.stroke();
-  ctx.textAlign = "center"; ctx.fillStyle = selected ? char.color : "white"; ctx.font = "bold 24px Arial"; ctx.fillText(char.name, x+w/2, y+34);
-  ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.font = "13px Arial"; ctx.fillText(char.subtitle, x+w/2, y+58);
-  const fake = {x:x+w/2-19,y:y+95,w:38,h:82,facing:1,char,hurtTimer:0,attackTimer:0,blocking:false,combo:1};
+  ctx.textAlign = "center"; ctx.fillStyle = selected ? char.color : "white"; ctx.font = "bold 22px Arial"; ctx.fillText(char.name, x+w/2, y+31);
+  ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.font = "12px Arial"; ctx.fillText(char.subtitle, x+w/2, y+54);
+  const fake = {x:x+w/2-19,y:y+88,w:38,h:82,facing:1,char,hurtTimer:0,attackTimer:0,blocking:false,combo:1};
   drawFighter(fake, true);
-  ctx.textAlign = "left"; ctx.fillStyle = "rgba(255,255,255,.82)"; ctx.font = "13px Arial";
-  ctx.fillText("HP " + char.maxHp, x+18, y+h-54);
-  ctx.fillText("SPD " + char.speed, x+18, y+h-34);
-  ctx.fillText("M1 " + char.attackDamage.join("/"), x+18, y+h-14);
-  ctx.textAlign = "center"; ctx.fillStyle = selected ? "white" : "rgba(255,255,255,.55)"; ctx.font = "bold 13px Arial"; ctx.fillText(label, x+w/2, y+h-14);
+  ctx.textAlign = "left"; ctx.fillStyle = "rgba(255,255,255,.86)"; ctx.font = "12px Arial";
+  ctx.fillText("Weapon: " + char.weapon, x+12, y+h-72);
+  ctx.fillText("Tech: " + char.technique, x+12, y+h-54);
+  ctx.fillText("HP " + char.maxHp + "  SPD " + char.speed, x+12, y+h-34);
+  ctx.fillText("M1 " + char.attackDamage.join("/"), x+12, y+h-16);
+  ctx.textAlign = "center"; ctx.fillStyle = selected ? "white" : "rgba(255,255,255,.55)"; ctx.font = "bold 13px Arial"; ctx.fillText(label, x+w/2, y+h-16);
 }
 function drawSelect(){
   clickZones = []; drawStage(); centerText.textContent = "Character Select — scroll down, click cards, or use keys";
   ctx.save(); ctx.translate(0, -menuScroll);
-  drawTitle("CHARACTER SELECT", gameMode === "pvp" ? "P1 chooses with A/D. P2 chooses with arrows." : "P1 chooses a character. The AI gets its own character and level.");
-  const cardW = Math.min(160, canvas.width/6.4), cardH = 230, gap = 16;
+  drawTitle("CHARACTER SELECT", gameMode === "pvp" ? "Choose a Minecraft PvP creator fighter." : "Choose your fighter, then choose the AI fighter and level.");
+  const cardW = Math.min(170, canvas.width/6.15), cardH = 240, gap = 14;
   const totalW = characters.length*cardW + (characters.length-1)*gap;
   const startX = canvas.width/2 - totalW/2;
   ctx.textAlign = "left"; ctx.fillStyle = "white"; ctx.font = "bold 22px Arial"; ctx.fillText("Player 1", startX, 170);
   characters.forEach((ch,i) => drawCharCard(startX+i*(cardW+gap),190,cardW,cardH,ch,i===p1Choice,"P1",()=>p1Choice=i));
-  ctx.fillStyle = "white"; ctx.font = "bold 22px Arial"; ctx.fillText(gameMode === "pvai" ? "AI Character" : "Player 2", startX, 465);
-  characters.forEach((ch,i) => drawCharCard(startX+i*(cardW+gap),485,cardW,cardH,ch,i===p2Choice,gameMode==="pvai"?"AI":"P2",()=>p2Choice=i));
+  ctx.fillStyle = "white"; ctx.font = "bold 22px Arial"; ctx.fillText(gameMode === "pvai" ? "AI Character" : "Player 2", startX, 475);
+  characters.forEach((ch,i) => drawCharCard(startX+i*(cardW+gap),495,cardW,cardH,ch,i===p2Choice,gameMode==="pvai"?"AI":"P2",()=>p2Choice=i));
   if (gameMode === "pvai") {
     const d = difficulties[difficultyIndex];
     button(canvas.width-350, 150, 300, 72, "AI: " + d.name, () => difficultyIndex=(difficultyIndex+1)%difficulties.length, true, "click or Q/E to change");
   }
-  button(canvas.width/2-130, 760, 260, 52, "START FIGHT", startFight, true, "Enter also works");
-  button(30, 760, 190, 52, "BACK", goMode, false, "M / Esc");
+  button(canvas.width/2-130, 780, 260, 52, "START FIGHT", startFight, true, "Enter also works");
+  button(30, 780, 190, 52, "BACK", goMode, false, "M / Esc");
   ctx.font = "16px Arial"; ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.textAlign = "center";
-  ctx.fillText("P1: A/D select, WASD move, F attack, G block.  P2: arrows select/move, / attack, . block.", canvas.width/2, 840);
+  ctx.fillText("P1: A/D select, WASD move, F attack, G block.  P2: arrows select/move, / attack, . block.", canvas.width/2, 860);
   ctx.restore(); drawScrollHint();
 }
 function updateUI(){
