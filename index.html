@@ -32,11 +32,13 @@ const p2Name = document.getElementById("p2Name");
 const p1Hp = document.getElementById("p1Hp");
 const p2Hp = document.getElementById("p2Hp");
 
-function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; menuScroll = clamp(menuScroll, 0, maxMenuScroll()); }
 addEventListener("resize", resize); resize();
 
 const keys = {};
 let clickZones = [];
+let menuScroll = 0;
+
 addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   keys[k] = true;
@@ -46,10 +48,16 @@ addEventListener("keydown", e => {
   else if ((state === "fight" || state === "gameover") && k === "r") goMode();
 });
 addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+addEventListener("wheel", e => {
+  if (state === "mode" || state === "select") {
+    menuScroll = clamp(menuScroll + e.deltaY, 0, maxMenuScroll());
+    e.preventDefault();
+  }
+}, { passive:false });
 addEventListener("mousedown", e => {
   const r = canvas.getBoundingClientRect();
   const x = e.clientX - r.left;
-  const y = e.clientY - r.top;
+  const y = e.clientY - r.top + ((state === "mode" || state === "select") ? menuScroll : 0);
   for (let i = clickZones.length - 1; i >= 0; i--) {
     const z = clickZones[i];
     if (x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) { z.fn(); break; }
@@ -84,8 +92,22 @@ let winnerText = "";
 let aiTick = 0;
 let aiInput = {};
 
-function goMode(){ state = "mode"; ui.style.display = "none"; winnerText = ""; particles = []; }
-function goSelect(){ state = "select"; ui.style.display = "none"; winnerText = ""; }
+function maxMenuScroll(){
+  const contentBottom = state === "select" ? 890 : 720;
+  return Math.max(0, contentBottom - canvas.height + 30);
+}
+function drawScrollHint(){
+  const max = maxMenuScroll();
+  if (max <= 0) return;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,.42)";
+  ctx.beginPath(); ctx.roundRect(canvas.width-150, canvas.height-48, 130, 30, 12); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.82)"; ctx.font = "13px Arial"; ctx.textAlign = "center";
+  ctx.fillText("scroll " + Math.round(menuScroll) + "/" + Math.round(max), canvas.width-85, canvas.height-28);
+  ctx.restore();
+}
+function goMode(){ state = "mode"; menuScroll = 0; ui.style.display = "none"; winnerText = ""; particles = []; }
+function goSelect(){ state = "select"; menuScroll = 0; ui.style.display = "none"; winnerText = ""; }
 function groundY(){ return canvas.height * .72; }
 function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 function overlap(a,b){ return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y; }
@@ -104,6 +126,8 @@ function handleModeKey(k){
   if (k === "2") { gameMode = "pvai"; goSelect(); }
   if (k === "arrowup" || k === "w") difficultyIndex = (difficultyIndex + difficulties.length - 1) % difficulties.length;
   if (k === "arrowdown" || k === "s") difficultyIndex = (difficultyIndex + 1) % difficulties.length;
+  if (k === "pagedown") menuScroll = clamp(menuScroll + 260, 0, maxMenuScroll());
+  if (k === "pageup") menuScroll = clamp(menuScroll - 260, 0, maxMenuScroll());
   if (k === "enter") goSelect();
 }
 function handleSelectKey(k){
@@ -113,6 +137,8 @@ function handleSelectKey(k){
   if (k === "arrowright") p2Choice = (p2Choice + 1) % characters.length;
   if (k === "q") difficultyIndex = (difficultyIndex + difficulties.length - 1) % difficulties.length;
   if (k === "e") difficultyIndex = (difficultyIndex + 1) % difficulties.length;
+  if (k === "pagedown" || k === "s") menuScroll = clamp(menuScroll + 260, 0, maxMenuScroll());
+  if (k === "pageup") menuScroll = clamp(menuScroll - 260, 0, maxMenuScroll());
   if (k === "m" || k === "escape") goMode();
   if (k === "enter") startFight();
 }
@@ -123,7 +149,7 @@ function makeFighter(x,y,facing,charData,controls,playerNum,isAI=false){
     hasHitThisSwing:false, hurtTimer:0, blockTimer:0, blocking:false, controls };
 }
 function startFight(){
-  state = "fight"; ui.style.display = "flex"; particles = []; hitstop = 0; winnerText = ""; aiTick = 0; aiInput = {};
+  state = "fight"; menuScroll = 0; ui.style.display = "flex"; particles = []; hitstop = 0; winnerText = ""; aiTick = 0; aiInput = {};
   p1 = makeFighter(180, groundY()-82, 1, characters[p1Choice], {left:"a",right:"d",jump:"w",attack:"f",block:"g"}, 1, false);
   p2 = makeFighter(canvas.width-220, groundY()-82, -1, characters[p2Choice], {left:"arrowleft",right:"arrowright",jump:"arrowup",attack:"/",block:"."}, 2, gameMode === "pvai");
   p1Name.textContent = "P1: " + p1.char.name;
@@ -180,17 +206,11 @@ function buildAIInput(ai, enemy){
   const enemyAttacking = enemy.attackTimer > 0;
   const myRange = ai.char.attackRange + 32;
   let input = {left:false,right:false,jump:false,attack:false,block:false};
-
   if (aiTick % d.reaction === 0 || d.insane) {
     const tooFar = abs > myRange * (d.insane ? .86 : 1.05);
     const tooClose = abs < 34;
-    if (tooFar) {
-      input.left = dist < 0;
-      input.right = dist > 0;
-    } else if (tooClose && d.moveSkill > .7) {
-      input.left = dist > 0;
-      input.right = dist < 0;
-    }
+    if (tooFar) { input.left = dist < 0; input.right = dist > 0; }
+    else if (tooClose && d.moveSkill > .7) { input.left = dist > 0; input.right = dist < 0; }
     if (abs < myRange && Math.random() < d.attackChance) input.attack = true;
     if (enemyAttacking && abs < enemy.char.attackRange + 45 && Math.random() < d.blockChance) input.block = true;
     if (d.insane && enemyAttacking && abs < 95) input.block = true;
@@ -264,14 +284,17 @@ function drawTitle(txt, sub){
   ctx.font = "18px Arial"; ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.fillText(sub, canvas.width/2, 132);
 }
 function drawMode(){
-  clickZones = []; ui.style.display = "none"; drawStage(); centerText.textContent = "Choose mode"; drawTitle("AI BATTLEGROUNDS", "Pick PvP or PvAI. You can click buttons now.");
+  clickZones = []; ui.style.display = "none"; drawStage(); centerText.textContent = "Choose mode — scroll if needed";
+  ctx.save(); ctx.translate(0, -menuScroll);
+  drawTitle("AI BATTLEGROUNDS", "Pick PvP or PvAI. You can click buttons now.");
   const cx = canvas.width/2;
   button(cx-330,180,300,90,"1  PvP", () => { gameMode="pvp"; goSelect(); }, gameMode==="pvp", "two humans, same keyboard");
   button(cx+30,180,300,90,"2  PvAI", () => { gameMode="pvai"; goSelect(); }, gameMode==="pvai", "fight a selectable AI");
   ctx.font = "bold 24px Arial"; ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.fillText("AI Level", cx, 330);
   const startY = 355;
   difficulties.forEach((d,i) => button(cx-260, startY+i*58, 520, 46, d.name, () => { difficultyIndex=i; gameMode="pvai"; }, i===difficultyIndex, d.note));
-  ctx.font = "16px Arial"; ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fillText("Keyboard: 1 PvP, 2 PvAI, W/S or ↑/↓ level, Enter continue", cx, canvas.height-45);
+  ctx.font = "16px Arial"; ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fillText("Keyboard: 1 PvP, 2 PvAI, W/S or ↑/↓ level, Enter continue", cx, 680);
+  ctx.restore(); drawScrollHint();
 }
 function drawCharCard(x,y,w,h,char,selected,label,onClick){
   clickZones.push({x,y,w,h,fn:onClick});
@@ -289,7 +312,8 @@ function drawCharCard(x,y,w,h,char,selected,label,onClick){
   ctx.textAlign = "center"; ctx.fillStyle = selected ? "white" : "rgba(255,255,255,.55)"; ctx.font = "bold 13px Arial"; ctx.fillText(label, x+w/2, y+h-14);
 }
 function drawSelect(){
-  clickZones = []; drawStage(); centerText.textContent = "Character Select — click cards or use keys";
+  clickZones = []; drawStage(); centerText.textContent = "Character Select — scroll down, click cards, or use keys";
+  ctx.save(); ctx.translate(0, -menuScroll);
   drawTitle("CHARACTER SELECT", gameMode === "pvp" ? "P1 chooses with A/D. P2 chooses with arrows." : "P1 chooses a character. The AI gets its own character and level.");
   const cardW = Math.min(160, canvas.width/6.4), cardH = 230, gap = 16;
   const totalW = characters.length*cardW + (characters.length-1)*gap;
@@ -302,10 +326,11 @@ function drawSelect(){
     const d = difficulties[difficultyIndex];
     button(canvas.width-350, 150, 300, 72, "AI: " + d.name, () => difficultyIndex=(difficultyIndex+1)%difficulties.length, true, "click or Q/E to change");
   }
-  button(canvas.width/2-130, canvas.height-72, 260, 52, "START FIGHT", startFight, true, "Enter also works");
-  button(30, canvas.height-72, 190, 52, "BACK", goMode, false, "M / Esc");
+  button(canvas.width/2-130, 760, 260, 52, "START FIGHT", startFight, true, "Enter also works");
+  button(30, 760, 190, 52, "BACK", goMode, false, "M / Esc");
   ctx.font = "16px Arial"; ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.textAlign = "center";
-  ctx.fillText("P1: A/D select, WASD move, F attack, G block.  P2: arrows select/move, / attack, . block.", canvas.width/2, canvas.height-95);
+  ctx.fillText("P1: A/D select, WASD move, F attack, G block.  P2: arrows select/move, / attack, . block.", canvas.width/2, 840);
+  ctx.restore(); drawScrollHint();
 }
 function updateUI(){
   p1Hp.style.width = (p1.hp/p1.maxHp*100) + "%"; p2Hp.style.width = (p2.hp/p2.maxHp*100) + "%";
@@ -325,6 +350,7 @@ function drawFight(){
   drawParticles(); drawFighter(p1); drawFighter(p2); updateUI();
 }
 function loop(){
+  menuScroll = clamp(menuScroll, 0, maxMenuScroll());
   if (state === "mode") drawMode();
   else if (state === "select") drawSelect();
   else drawFight();
