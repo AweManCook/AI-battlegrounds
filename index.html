@@ -2,170 +2,29 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>2 Player Anime PvP Prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Battlegrounds</title>
 <style>
-  html, body {
-    margin: 0;
-    overflow: hidden;
-    background: #111;
-    font-family: Arial, sans-serif;
-    color: white;
-  }
-  canvas {
-    display: block;
-    background: linear-gradient(#1b2438, #10141f 65%, #151515 65%);
-  }
-  #ui {
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    right: 12px;
-    pointer-events: none;
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-  }
-  .panel {
-    width: 42%;
-    background: rgba(0,0,0,0.35);
-    border: 2px solid rgba(255,255,255,0.2);
-    border-radius: 10px;
-    padding: 8px 10px;
-  }
-  .name {
-    font-weight: bold;
-    margin-bottom: 5px;
-  }
-  .barOuter {
-    height: 18px;
-    background: #333;
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .barInner {
-    height: 100%;
-    width: 100%;
-    background: white;
-  }
-  #centerText {
-    position: fixed;
-    top: 12px;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-weight: bold;
-    font-size: 18px;
-    pointer-events: none;
-    text-shadow: 0 2px 5px black;
-  }
+  html, body { margin:0; overflow:hidden; background:#0d1018; color:white; font-family:Arial, sans-serif; }
+  canvas { display:block; background:linear-gradient(#1b2438, #10141f 64%, #181818 64%); }
+  #ui { position:fixed; top:12px; left:12px; right:12px; pointer-events:none; display:none; justify-content:space-between; gap:20px; }
+  .panel { width:42%; background:rgba(0,0,0,.38); border:2px solid rgba(255,255,255,.2); border-radius:10px; padding:8px 10px; }
+  .name { font-weight:bold; margin-bottom:5px; }
+  .barOuter { height:18px; background:#333; border-radius:99px; overflow:hidden; }
+  .barInner { height:100%; width:100%; background:white; transition:width .08s linear; }
+  #centerText { position:fixed; top:12px; left:0; right:0; text-align:center; font-weight:bold; font-size:18px; pointer-events:none; text-shadow:0 2px 5px black; }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-
-<div id="ui" style="display:none">
-  <div class="panel">
-    <div class="name" id="p1Name">P1</div>
-    <div class="barOuter"><div class="barInner" id="p1Hp"></div></div>
-  </div>
-  <div class="panel">
-    <div class="name" id="p2Name" style="text-align:right">P2</div>
-    <div class="barOuter"><div class="barInner" id="p2Hp"></div></div>
-  </div>
+<div id="ui">
+  <div class="panel"><div class="name" id="p1Name">P1</div><div class="barOuter"><div class="barInner" id="p1Hp"></div></div></div>
+  <div class="panel"><div class="name" id="p2Name" style="text-align:right">P2</div><div class="barOuter"><div class="barInner" id="p2Hp"></div></div></div>
 </div>
 <div id="centerText"></div>
-
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
-function resize() {
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-}
-addEventListener("resize", resize);
-resize();
-
-const keys = {};
-addEventListener("keydown", e => {
-  keys[e.key.toLowerCase()] = true;
-
-  if (state === "select") {
-    handleSelectKey(e.key.toLowerCase());
-  }
-
-  if (state === "fight" && e.key.toLowerCase() === "r") {
-    resetToSelect();
-  }
-});
-addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
-
-const characters = [
-  {
-    id: "kael",
-    name: "Kael",
-    subtitle: "Balanced dagger fighter",
-    color: "#62d479",
-    accent: "#b8ffd0",
-    speed: 5,
-    jump: 15,
-    maxHp: 110,
-    attackDamage: [7, 8, 10, 15],
-    attackRange: 62,
-    attackCooldown: 18,
-    knockback: 7
-  },
-  {
-    id: "riven",
-    name: "Riven",
-    subtitle: "Fast rushdown",
-    color: "#62b7ff",
-    accent: "#d7f0ff",
-    speed: 6.4,
-    jump: 14,
-    maxHp: 90,
-    attackDamage: [6, 6, 8, 12],
-    attackRange: 56,
-    attackCooldown: 14,
-    knockback: 5.5
-  },
-  {
-    id: "brakk",
-    name: "Brakk",
-    subtitle: "Heavy brawler",
-    color: "#ff8b47",
-    accent: "#ffd1ad",
-    speed: 4.2,
-    jump: 13,
-    maxHp: 135,
-    attackDamage: [9, 10, 12, 20],
-    attackRange: 70,
-    attackCooldown: 24,
-    knockback: 10
-  },
-  {
-    id: "mira",
-    name: "Mira",
-    subtitle: "Longer poke range",
-    color: "#c982ff",
-    accent: "#eed0ff",
-    speed: 5.2,
-    jump: 15,
-    maxHp: 100,
-    attackDamage: [6, 8, 9, 14],
-    attackRange: 82,
-    attackCooldown: 20,
-    knockback: 7.5
-  }
-];
-
-let state = "select";
-let p1Choice = 0;
-let p2Choice = 1;
-let winnerText = "";
-let particles = [];
-let hitstop = 0;
-
 const ui = document.getElementById("ui");
 const centerText = document.getElementById("centerText");
 const p1Name = document.getElementById("p1Name");
@@ -173,448 +32,305 @@ const p2Name = document.getElementById("p2Name");
 const p1Hp = document.getElementById("p1Hp");
 const p2Hp = document.getElementById("p2Hp");
 
-function handleSelectKey(k) {
+function resize(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+addEventListener("resize", resize); resize();
+
+const keys = {};
+let clickZones = [];
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (["arrowleft","arrowright","arrowup","arrowdown"," "].includes(k)) e.preventDefault();
+  if (state === "mode") handleModeKey(k);
+  else if (state === "select") handleSelectKey(k);
+  else if ((state === "fight" || state === "gameover") && k === "r") goMode();
+});
+addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+addEventListener("mousedown", e => {
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+  for (let i = clickZones.length - 1; i >= 0; i--) {
+    const z = clickZones[i];
+    if (x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) { z.fn(); break; }
+  }
+});
+
+const characters = [
+  { id:"kael", name:"Kael", subtitle:"Balanced dagger fighter", color:"#62d479", accent:"#b8ffd0", speed:5, jump:15, maxHp:110, attackDamage:[7,8,10,15], attackRange:62, attackCooldown:18, knockback:7 },
+  { id:"riven", name:"Riven", subtitle:"Fast rushdown", color:"#62b7ff", accent:"#d7f0ff", speed:6.4, jump:14, maxHp:90, attackDamage:[6,6,8,12], attackRange:56, attackCooldown:14, knockback:5.5 },
+  { id:"brakk", name:"Brakk", subtitle:"Heavy brawler", color:"#ff8b47", accent:"#ffd1ad", speed:4.2, jump:13, maxHp:135, attackDamage:[9,10,12,20], attackRange:70, attackCooldown:24, knockback:10 },
+  { id:"mira", name:"Mira", subtitle:"Long poke range", color:"#c982ff", accent:"#eed0ff", speed:5.2, jump:15, maxHp:100, attackDamage:[6,8,9,14], attackRange:82, attackCooldown:20, knockback:7.5 },
+  { id:"nyx", name:"Nyx", subtitle:"Glass cannon assassin", color:"#ff5fa8", accent:"#ffd0e7", speed:6.8, jump:16, maxHp:82, attackDamage:[8,8,11,18], attackRange:58, attackCooldown:15, knockback:8 }
+];
+
+const difficulties = [
+  { name:"Training Dummy", note:"Does not move or attack", reaction:9999, attackChance:0, blockChance:0, moveSkill:0, jumpChance:0, insane:false },
+  { name:"Easy", note:"Walks at you and sometimes attacks", reaction:34, attackChance:.35, blockChance:.05, moveSkill:.45, jumpChance:.002, insane:false },
+  { name:"Normal", note:"Chases, spaces, blocks a little", reaction:20, attackChance:.55, blockChance:.16, moveSkill:.75, jumpChance:.004, insane:false },
+  { name:"Hard", note:"Better spacing and punishes attacks", reaction:11, attackChance:.78, blockChance:.38, moveSkill:1.0, jumpChance:.008, insane:false },
+  { name:"Ultimate Power Insane", note:"Reads attacks, rushes, blocks, and combos", reaction:4, attackChance:.96, blockChance:.72, moveSkill:1.35, jumpChance:.014, insane:true }
+];
+
+let state = "mode";
+let gameMode = "pvp";
+let p1Choice = 0;
+let p2Choice = 1;
+let difficultyIndex = 2;
+let p1, p2;
+let particles = [];
+let hitstop = 0;
+let winnerText = "";
+let aiTick = 0;
+let aiInput = {};
+
+function goMode(){ state = "mode"; ui.style.display = "none"; winnerText = ""; particles = []; }
+function goSelect(){ state = "select"; ui.style.display = "none"; winnerText = ""; }
+function groundY(){ return canvas.height * .72; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function overlap(a,b){ return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y; }
+function button(x,y,w,h,label,fn,active=false,small=""){
+  clickZones.push({x,y,w,h,fn});
+  ctx.fillStyle = active ? "rgba(255,255,255,.24)" : "rgba(0,0,0,.36)";
+  ctx.strokeStyle = active ? "white" : "rgba(255,255,255,.25)";
+  ctx.lineWidth = active ? 3 : 2;
+  ctx.beginPath(); ctx.roundRect(x,y,w,h,14); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "white"; ctx.font = "bold 22px Arial"; ctx.textAlign = "center"; ctx.fillText(label, x+w/2, y+34);
+  if (small) { ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.font = "15px Arial"; ctx.fillText(small, x+w/2, y+59); }
+}
+
+function handleModeKey(k){
+  if (k === "1") { gameMode = "pvp"; goSelect(); }
+  if (k === "2") { gameMode = "pvai"; goSelect(); }
+  if (k === "arrowup" || k === "w") difficultyIndex = (difficultyIndex + difficulties.length - 1) % difficulties.length;
+  if (k === "arrowdown" || k === "s") difficultyIndex = (difficultyIndex + 1) % difficulties.length;
+  if (k === "enter") goSelect();
+}
+function handleSelectKey(k){
   if (k === "a") p1Choice = (p1Choice + characters.length - 1) % characters.length;
   if (k === "d") p1Choice = (p1Choice + 1) % characters.length;
   if (k === "arrowleft") p2Choice = (p2Choice + characters.length - 1) % characters.length;
   if (k === "arrowright") p2Choice = (p2Choice + 1) % characters.length;
+  if (k === "q") difficultyIndex = (difficultyIndex + difficulties.length - 1) % difficulties.length;
+  if (k === "e") difficultyIndex = (difficultyIndex + 1) % difficulties.length;
+  if (k === "m" || k === "escape") goMode();
   if (k === "enter") startFight();
 }
 
-function makeFighter(x, y, facing, charData, controls, playerNum) {
-  return {
-    playerNum,
-    char: charData,
-    x, y,
-    w: 38,
-    h: 82,
-    vx: 0,
-    vy: 0,
-    facing,
-    grounded: false,
-    hp: charData.maxHp,
-    maxHp: charData.maxHp,
-
-    attackTimer: 0,
-    attackCooldown: 0,
-    combo: 0,
-    comboReset: 0,
-    hasHitThisSwing: false,
-
-    hurtTimer: 0,
-    blockTimer: 0,
-    controls
-  };
+function makeFighter(x,y,facing,charData,controls,playerNum,isAI=false){
+  return { playerNum, isAI, char:charData, x,y,w:38,h:82,vx:0,vy:0,facing,grounded:false,
+    hp:charData.maxHp, maxHp:charData.maxHp, attackTimer:0, attackCooldown:0, combo:0, comboReset:0,
+    hasHitThisSwing:false, hurtTimer:0, blockTimer:0, blocking:false, controls };
 }
-
-let p1, p2;
-
-function startFight() {
-  state = "fight";
-  ui.style.display = "flex";
-  winnerText = "";
-  particles = [];
-
-  p1 = makeFighter(180, groundY() - 82, 1, characters[p1Choice], {
-    left: "a",
-    right: "d",
-    jump: "w",
-    attack: "f",
-    block: "g"
-  }, 1);
-
-  p2 = makeFighter(canvas.width - 220, groundY() - 82, -1, characters[p2Choice], {
-    left: "arrowleft",
-    right: "arrowright",
-    jump: "arrowup",
-    attack: "/",
-    block: "."
-  }, 2);
-
+function startFight(){
+  state = "fight"; ui.style.display = "flex"; particles = []; hitstop = 0; winnerText = ""; aiTick = 0; aiInput = {};
+  p1 = makeFighter(180, groundY()-82, 1, characters[p1Choice], {left:"a",right:"d",jump:"w",attack:"f",block:"g"}, 1, false);
+  p2 = makeFighter(canvas.width-220, groundY()-82, -1, characters[p2Choice], {left:"arrowleft",right:"arrowright",jump:"arrowup",attack:"/",block:"."}, 2, gameMode === "pvai");
   p1Name.textContent = "P1: " + p1.char.name;
-  p2Name.textContent = "P2: " + p2.char.name;
+  p2Name.textContent = (p2.isAI ? "AI " + difficulties[difficultyIndex].name + ": " : "P2: ") + p2.char.name;
 }
 
-function resetToSelect() {
-  state = "select";
-  ui.style.display = "none";
-  winnerText = "";
+function attackBox(f){
+  const extra = f.combo === 4 ? 18 : 0;
+  const width = f.char.attackRange + extra;
+  return { x:f.facing===1 ? f.x+f.w : f.x-width, y:f.y+18, w:width, h:52 };
 }
-
-function groundY() {
-  return canvas.height * 0.72;
+function startM1(f){
+  if (f.attackCooldown > 0 || f.hurtTimer > 0) return;
+  if (f.comboReset <= 0) f.combo = 0;
+  f.combo = (f.combo % 4) + 1;
+  f.attackTimer = f.combo === 4 ? 18 : 13;
+  f.attackCooldown = f.char.attackCooldown + (f.combo === 4 ? 10 : 0);
+  f.comboReset = 46;
+  f.hasHitThisSwing = false;
 }
-
-function rectsOverlap(a, b) {
-  return (
-    a.x < b.x + b.w &&
-    a.x + a.w > b.x &&
-    a.y < b.y + b.h &&
-    a.y + a.h > b.y
-  );
-}
-
-function attackBox(f) {
-  const comboStep = Math.max(0, f.combo - 1);
-  const extra = comboStep === 3 ? 18 : 0;
-  const range = f.char.attackRange + extra;
-  const height = 52;
-  const width = range;
-  return {
-    x: f.facing === 1 ? f.x + f.w : f.x - width,
-    y: f.y + 18,
-    w: width,
-    h: height
-  };
-}
-
-function startM1(attacker) {
-  if (attacker.attackCooldown > 0 || attacker.hurtTimer > 0) return;
-
-  if (attacker.comboReset <= 0) attacker.combo = 0;
-  attacker.combo = (attacker.combo % 4) + 1;
-
-  attacker.attackTimer = attacker.combo === 4 ? 18 : 13;
-  attacker.attackCooldown = attacker.char.attackCooldown + (attacker.combo === 4 ? 10 : 0);
-  attacker.comboReset = 46;
-  attacker.hasHitThisSwing = false;
-}
-
-function applyHit(attacker, defender) {
-  if (attacker.hasHitThisSwing) return;
-  const box = attackBox(attacker);
-  if (!rectsOverlap(box, defender)) return;
-
-  attacker.hasHitThisSwing = true;
-
-  let damage = attacker.char.attackDamage[attacker.combo - 1];
-  let kb = attacker.char.knockback;
-
-  const blocking = keys[defender.controls.block] && defender.grounded;
-  if (blocking && defender.facing === -attacker.facing) {
-    damage = Math.ceil(damage * 0.35);
-    kb *= 0.35;
-    defender.blockTimer = 10;
-    spawnParticles(defender.x + defender.w / 2, defender.y + 34, "#ffffff", 8, 2);
+function applyHit(a,d){
+  if (a.hasHitThisSwing || !overlap(attackBox(a), d)) return;
+  a.hasHitThisSwing = true;
+  let dmg = a.char.attackDamage[a.combo-1];
+  let kb = a.char.knockback;
+  if (d.blocking && d.grounded && d.facing === -a.facing) {
+    dmg = Math.ceil(dmg * .35); kb *= .35; d.blockTimer = 10;
+    spawnParticles(d.x+d.w/2,d.y+34,"#ffffff",8,2);
   } else {
-    defender.hurtTimer = attacker.combo === 4 ? 25 : 13;
-    spawnParticles(defender.x + defender.w / 2, defender.y + 35, attacker.char.accent, attacker.combo === 4 ? 20 : 11, attacker.combo === 4 ? 5 : 3);
-    hitstop = attacker.combo === 4 ? 7 : 4;
+    d.hurtTimer = a.combo === 4 ? 25 : 13;
+    spawnParticles(d.x+d.w/2,d.y+35,a.char.accent,a.combo===4?20:11,a.combo===4?5:3);
+    hitstop = a.combo === 4 ? 7 : 4;
   }
-
-  defender.hp = Math.max(0, defender.hp - damage);
-  defender.vx = attacker.facing * kb * (attacker.combo === 4 ? 1.6 : 1);
-  defender.vy = attacker.combo === 4 ? -7 : -3;
-
-  if (defender.hp <= 0) {
-    state = "gameover";
-    winnerText = attacker.playerNum === 1 ? "P1 wins!" : "P2 wins!";
+  d.hp = Math.max(0, d.hp - dmg);
+  d.vx = a.facing * kb * (a.combo === 4 ? 1.6 : 1);
+  d.vy = a.combo === 4 ? -7 : -3;
+  if (d.hp <= 0) { state = "gameover"; winnerText = a.isAI ? "AI wins!" : "P" + a.playerNum + " wins!"; }
+}
+function spawnParticles(x,y,color,count,speed){
+  for(let i=0;i<count;i++){
+    const a = Math.random()*Math.PI*2, s = Math.random()*speed+1;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:18+Math.random()*12,maxLife:30,size:3+Math.random()*4,color});
   }
 }
-
-function spawnParticles(x, y, color, count, speed) {
-  for (let i = 0; i < count; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const s = Math.random() * speed + 1;
-    particles.push({
-      x, y,
-      vx: Math.cos(a) * s,
-      vy: Math.sin(a) * s,
-      life: 18 + Math.random() * 12,
-      maxLife: 30,
-      size: 3 + Math.random() * 4,
-      color
-    });
-  }
+function inputFromKeys(f){
+  return { left:!!keys[f.controls.left], right:!!keys[f.controls.right], jump:!!keys[f.controls.jump], attack:!!keys[f.controls.attack], block:!!keys[f.controls.block] };
 }
+function buildAIInput(ai, enemy){
+  const d = difficulties[difficultyIndex];
+  if (d.name === "Training Dummy") return {left:false,right:false,jump:false,attack:false,block:false};
+  aiTick++;
+  const dist = enemy.x - ai.x;
+  const abs = Math.abs(dist);
+  const enemyAttacking = enemy.attackTimer > 0;
+  const myRange = ai.char.attackRange + 32;
+  let input = {left:false,right:false,jump:false,attack:false,block:false};
 
-function updateFighter(f, enemy) {
-  const c = f.controls;
-  const speed = f.char.speed;
-
+  if (aiTick % d.reaction === 0 || d.insane) {
+    const tooFar = abs > myRange * (d.insane ? .86 : 1.05);
+    const tooClose = abs < 34;
+    if (tooFar) {
+      input.left = dist < 0;
+      input.right = dist > 0;
+    } else if (tooClose && d.moveSkill > .7) {
+      input.left = dist > 0;
+      input.right = dist < 0;
+    }
+    if (abs < myRange && Math.random() < d.attackChance) input.attack = true;
+    if (enemyAttacking && abs < enemy.char.attackRange + 45 && Math.random() < d.blockChance) input.block = true;
+    if (d.insane && enemyAttacking && abs < 95) input.block = true;
+    if (Math.random() < d.jumpChance && ai.grounded) input.jump = true;
+    aiInput = input;
+  }
+  return aiInput;
+}
+function updateFighter(f, enemy, input){
+  const speed = f.char.speed * (f.isAI && difficulties[difficultyIndex].insane ? 1.08 : 1);
+  f.blocking = !!input.block;
   if (f.hurtTimer <= 0) {
-    if (keys[c.left]) {
-      f.vx -= 0.75;
-      f.facing = -1;
-    }
-    if (keys[c.right]) {
-      f.vx += 0.75;
-      f.facing = 1;
-    }
-
-    if (keys[c.jump] && f.grounded) {
-      f.vy = -f.char.jump;
-      f.grounded = false;
-    }
-
-    if (keys[c.attack]) startM1(f);
+    if (input.left) { f.vx -= .75; f.facing = -1; }
+    if (input.right) { f.vx += .75; f.facing = 1; }
+    if (input.jump && f.grounded) { f.vy = -f.char.jump; f.grounded = false; }
+    if (input.attack) startM1(f);
   }
-
-  f.vx = Math.max(-speed, Math.min(speed, f.vx));
-  f.vy += 0.78;
-
-  f.x += f.vx;
-  f.y += f.vy;
-
-  f.vx *= f.grounded ? 0.78 : 0.93;
-
-  if (f.y + f.h >= groundY()) {
-    f.y = groundY() - f.h;
-    f.vy = 0;
-    f.grounded = true;
-  }
-
-  f.x = Math.max(20, Math.min(canvas.width - f.w - 20, f.x));
-
+  f.vx = clamp(f.vx, -speed, speed);
+  f.vy += .78;
+  f.x += f.vx; f.y += f.vy;
+  f.vx *= f.grounded ? .78 : .93;
+  if (f.y + f.h >= groundY()) { f.y = groundY()-f.h; f.vy = 0; f.grounded = true; }
+  f.x = clamp(f.x, 20, canvas.width-f.w-20);
   if (f.attackTimer > 0) {
     const activeStart = f.combo === 4 ? 5 : 3;
     const activeEnd = f.combo === 4 ? 13 : 9;
     const elapsed = (f.combo === 4 ? 18 : 13) - f.attackTimer;
-    if (elapsed >= activeStart && elapsed <= activeEnd) {
-      applyHit(f, enemy);
-    }
+    if (elapsed >= activeStart && elapsed <= activeEnd) applyHit(f, enemy);
   }
-
-  f.attackTimer = Math.max(0, f.attackTimer - 1);
-  f.attackCooldown = Math.max(0, f.attackCooldown - 1);
-  f.comboReset = Math.max(0, f.comboReset - 1);
-  f.hurtTimer = Math.max(0, f.hurtTimer - 1);
-  f.blockTimer = Math.max(0, f.blockTimer - 1);
+  f.attackTimer = Math.max(0, f.attackTimer-1);
+  f.attackCooldown = Math.max(0, f.attackCooldown-1);
+  f.comboReset = Math.max(0, f.comboReset-1);
+  f.hurtTimer = Math.max(0, f.hurtTimer-1);
+  f.blockTimer = Math.max(0, f.blockTimer-1);
 }
-
-function updateParticles() {
-  for (const p of particles) {
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.08;
-    p.life--;
-  }
+function updateParticles(){
+  for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vy += .08; p.life--; }
   particles = particles.filter(p => p.life > 0);
 }
 
-function drawFighter(f) {
-  ctx.save();
-  ctx.translate(f.x + f.w / 2, f.y + f.h / 2);
-
-  if (f.hurtTimer > 0) {
-    ctx.translate(Math.sin(Date.now() / 25) * 3, 0);
-  }
-
-  const bodyColor = f.hurtTimer > 0 ? "#ffffff" : f.char.color;
-
-  // shadow
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.beginPath();
-  ctx.ellipse(0, f.h / 2 + 5, 34, 9, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // body
-  ctx.fillStyle = bodyColor;
-  roundRect(-f.w / 2, -f.h / 2 + 18, f.w, 54, 10);
-  ctx.fill();
-
-  // head
-  ctx.beginPath();
-  ctx.arc(0, -f.h / 2 + 8, 18, 0, Math.PI * 2);
-  ctx.fill();
-
-  // eye/facing mark
-  ctx.fillStyle = "#111";
-  ctx.fillRect(f.facing * 5, -f.h / 2 + 4, 8 * f.facing, 4);
-
-  // arm / attacking slash
-  ctx.strokeStyle = f.char.accent;
-  ctx.lineWidth = 5;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  if (f.attackTimer > 0) {
-    const reach = 26 + f.combo * 5;
-    ctx.moveTo(f.facing * 4, -4);
-    ctx.lineTo(f.facing * reach, 4 + f.combo * 2);
-  } else if (keys[f.controls.block]) {
-    ctx.moveTo(f.facing * 6, -2);
-    ctx.lineTo(f.facing * 22, -14);
-  } else {
-    ctx.moveTo(f.facing * 5, -2);
-    ctx.lineTo(f.facing * 19, 14);
-  }
+function drawStage(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = "rgba(255,255,255,.04)";
+  for (let i=0;i<10;i++) ctx.fillRect(i*190-((Date.now()/80)%190), 70, 80, canvas.height*.55);
+  ctx.fillStyle = "#202020"; ctx.fillRect(0, groundY(), canvas.width, canvas.height-groundY());
+  ctx.fillStyle = "rgba(255,255,255,.08)"; ctx.fillRect(0, groundY(), canvas.width, 4);
+}
+function drawFighter(f, preview=false){
+  ctx.save(); ctx.translate(f.x+f.w/2, f.y+f.h/2);
+  if (f.hurtTimer > 0) ctx.translate(Math.sin(Date.now()/25)*3, 0);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(0, f.h/2+5, 34, 9, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = f.hurtTimer > 0 ? "#fff" : f.char.color;
+  ctx.beginPath(); ctx.roundRect(-f.w/2, -f.h/2+18, f.w, 54, 10); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, -f.h/2+8, 18, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.fillRect(f.facing*5, -f.h/2+4, 8*f.facing, 4);
+  ctx.strokeStyle = f.char.accent; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath();
+  if (f.attackTimer > 0 || preview) { const reach = 26 + (f.combo || 1)*5; ctx.moveTo(f.facing*4,-4); ctx.lineTo(f.facing*reach,4+(f.combo||1)*2); }
+  else if (f.blocking) { ctx.moveTo(f.facing*6,-2); ctx.lineTo(f.facing*22,-14); }
+  else { ctx.moveTo(f.facing*5,-2); ctx.lineTo(f.facing*19,14); }
   ctx.stroke();
-
-  // minimal block shield
-  if (keys[f.controls.block] && f.grounded) {
-    ctx.strokeStyle = "rgba(255,255,255,0.65)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(f.facing * 27, 2, 19, -1.3, 1.3);
-    ctx.stroke();
-  }
-
+  if (f.blocking) { ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.facing*27,2,19,-1.3,1.3); ctx.stroke(); }
   ctx.restore();
-
-  // attack box debug-ish minimal flash
-  if (f.attackTimer > 0) {
-    const box = attackBox(f);
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fillRect(box.x, box.y, box.w, box.h);
+  if (!preview && f.attackTimer > 0) { const b = attackBox(f); ctx.fillStyle = "rgba(255,255,255,.08)"; ctx.fillRect(b.x,b.y,b.w,b.h); }
+  if (!preview && f.comboReset > 0 && f.combo > 0) { ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.font = "14px Arial"; ctx.textAlign = "center"; ctx.fillText("M1-"+f.combo, f.x+f.w/2, f.y-12); }
+}
+function drawParticles(){
+  for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life/p.maxLife); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
+}
+function drawTitle(txt, sub){
+  ctx.textAlign = "center"; ctx.fillStyle = "white"; ctx.font = "bold 46px Arial"; ctx.fillText(txt, canvas.width/2, 100);
+  ctx.font = "18px Arial"; ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.fillText(sub, canvas.width/2, 132);
+}
+function drawMode(){
+  clickZones = []; ui.style.display = "none"; drawStage(); centerText.textContent = "Choose mode"; drawTitle("AI BATTLEGROUNDS", "Pick PvP or PvAI. You can click buttons now.");
+  const cx = canvas.width/2;
+  button(cx-330,180,300,90,"1  PvP", () => { gameMode="pvp"; goSelect(); }, gameMode==="pvp", "two humans, same keyboard");
+  button(cx+30,180,300,90,"2  PvAI", () => { gameMode="pvai"; goSelect(); }, gameMode==="pvai", "fight a selectable AI");
+  ctx.font = "bold 24px Arial"; ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.fillText("AI Level", cx, 330);
+  const startY = 355;
+  difficulties.forEach((d,i) => button(cx-260, startY+i*58, 520, 46, d.name, () => { difficultyIndex=i; gameMode="pvai"; }, i===difficultyIndex, d.note));
+  ctx.font = "16px Arial"; ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fillText("Keyboard: 1 PvP, 2 PvAI, W/S or ↑/↓ level, Enter continue", cx, canvas.height-45);
+}
+function drawCharCard(x,y,w,h,char,selected,label,onClick){
+  clickZones.push({x,y,w,h,fn:onClick});
+  ctx.fillStyle = selected ? "rgba(255,255,255,.20)" : "rgba(0,0,0,.34)";
+  ctx.strokeStyle = selected ? char.color : "rgba(255,255,255,.24)"; ctx.lineWidth = selected ? 4 : 2;
+  ctx.beginPath(); ctx.roundRect(x,y,w,h,16); ctx.fill(); ctx.stroke();
+  ctx.textAlign = "center"; ctx.fillStyle = selected ? char.color : "white"; ctx.font = "bold 24px Arial"; ctx.fillText(char.name, x+w/2, y+34);
+  ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.font = "13px Arial"; ctx.fillText(char.subtitle, x+w/2, y+58);
+  const fake = {x:x+w/2-19,y:y+95,w:38,h:82,facing:1,char,hurtTimer:0,attackTimer:0,blocking:false,combo:1};
+  drawFighter(fake, true);
+  ctx.textAlign = "left"; ctx.fillStyle = "rgba(255,255,255,.82)"; ctx.font = "13px Arial";
+  ctx.fillText("HP " + char.maxHp, x+18, y+h-54);
+  ctx.fillText("SPD " + char.speed, x+18, y+h-34);
+  ctx.fillText("M1 " + char.attackDamage.join("/"), x+18, y+h-14);
+  ctx.textAlign = "center"; ctx.fillStyle = selected ? "white" : "rgba(255,255,255,.55)"; ctx.font = "bold 13px Arial"; ctx.fillText(label, x+w/2, y+h-14);
+}
+function drawSelect(){
+  clickZones = []; drawStage(); centerText.textContent = "Character Select — click cards or use keys";
+  drawTitle("CHARACTER SELECT", gameMode === "pvp" ? "P1 chooses with A/D. P2 chooses with arrows." : "P1 chooses a character. The AI gets its own character and level.");
+  const cardW = Math.min(160, canvas.width/6.4), cardH = 230, gap = 16;
+  const totalW = characters.length*cardW + (characters.length-1)*gap;
+  const startX = canvas.width/2 - totalW/2;
+  ctx.textAlign = "left"; ctx.fillStyle = "white"; ctx.font = "bold 22px Arial"; ctx.fillText("Player 1", startX, 170);
+  characters.forEach((ch,i) => drawCharCard(startX+i*(cardW+gap),190,cardW,cardH,ch,i===p1Choice,"P1",()=>p1Choice=i));
+  ctx.fillStyle = "white"; ctx.font = "bold 22px Arial"; ctx.fillText(gameMode === "pvai" ? "AI Character" : "Player 2", startX, 465);
+  characters.forEach((ch,i) => drawCharCard(startX+i*(cardW+gap),485,cardW,cardH,ch,i===p2Choice,gameMode==="pvai"?"AI":"P2",()=>p2Choice=i));
+  if (gameMode === "pvai") {
+    const d = difficulties[difficultyIndex];
+    button(canvas.width-350, 150, 300, 72, "AI: " + d.name, () => difficultyIndex=(difficultyIndex+1)%difficulties.length, true, "click or Q/E to change");
   }
-
-  // combo text
-  if (f.comboReset > 0 && f.combo > 0) {
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.font = "14px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("M1-" + f.combo, f.x + f.w / 2, f.y - 12);
-  }
+  button(canvas.width/2-130, canvas.height-72, 260, 52, "START FIGHT", startFight, true, "Enter also works");
+  button(30, canvas.height-72, 190, 52, "BACK", goMode, false, "M / Esc");
+  ctx.font = "16px Arial"; ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.textAlign = "center";
+  ctx.fillText("P1: A/D select, WASD move, F attack, G block.  P2: arrows select/move, / attack, . block.", canvas.width/2, canvas.height-95);
 }
-
-function roundRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
+function updateUI(){
+  p1Hp.style.width = (p1.hp/p1.maxHp*100) + "%"; p2Hp.style.width = (p2.hp/p2.maxHp*100) + "%";
+  p1Hp.style.background = p1.char.color; p2Hp.style.background = p2.char.color;
 }
-
-function drawParticles() {
-  for (const p of particles) {
-    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
+function drawFight(){
+  clickZones = []; drawStage();
+  centerText.textContent = state === "gameover" ? winnerText + " — Press R for menu" : (gameMode === "pvai" ? "PvAI: beat the bot — R menu" : "PvP: P1 WASD/F/G, P2 arrows///. — R menu");
+  if (hitstop > 0) hitstop--;
+  else if (state === "fight") {
+    const in1 = inputFromKeys(p1);
+    const in2 = p2.isAI ? buildAIInput(p2,p1) : inputFromKeys(p2);
+    updateFighter(p1,p2,in1); updateFighter(p2,p1,in2); updateParticles();
+  } else updateParticles();
+  if (Math.abs(p1.x-p2.x)>10 && p1.attackTimer<=0 && p1.hurtTimer<=0) p1.facing = p1.x < p2.x ? 1 : -1;
+  if (Math.abs(p1.x-p2.x)>10 && p2.attackTimer<=0 && p2.hurtTimer<=0) p2.facing = p2.x < p1.x ? 1 : -1;
+  drawParticles(); drawFighter(p1); drawFighter(p2); updateUI();
 }
-
-function updateUI() {
-  p1Hp.style.width = (p1.hp / p1.maxHp * 100) + "%";
-  p2Hp.style.width = (p2.hp / p2.maxHp * 100) + "%";
-  p1Hp.style.background = p1.char.color;
-  p2Hp.style.background = p2.char.color;
+function loop(){
+  if (state === "mode") drawMode();
+  else if (state === "select") drawSelect();
+  else drawFight();
+  requestAnimationFrame(loop);
 }
-
-function drawStage() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // background panels
-  ctx.fillStyle = "rgba(255,255,255,0.04)";
-  for (let i = 0; i < 8; i++) {
-    ctx.fillRect(i * 190 - ((Date.now() / 80) % 190), 70, 80, canvas.height * 0.55);
-  }
-
-  // ground
-  ctx.fillStyle = "#202020";
-  ctx.fillRect(0, groundY(), canvas.width, canvas.height - groundY());
-
-  ctx.fillStyle = "rgba(255,255,255,0.08)";
-  ctx.fillRect(0, groundY(), canvas.width, 4);
-}
-
-function drawSelect() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawStage();
-
-  centerText.textContent = "Character Select — P1: A/D   P2: ←/→   Enter: Start";
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "white";
-  ctx.font = "42px Arial";
-  ctx.fillText("2 PLAYER PVP", canvas.width / 2, 105);
-
-  drawSelectSide(canvas.width * 0.28, p1Choice, "PLAYER 1", "A / D", true);
-  drawSelectSide(canvas.width * 0.72, p2Choice, "PLAYER 2", "← / →", false);
-
-  ctx.font = "18px Arial";
-  ctx.fillStyle = "rgba(255,255,255,0.75)";
-  ctx.fillText("Fight controls: P1 move WASD, attack F, block G. P2 move arrows, attack /, block .", canvas.width / 2, canvas.height - 45);
-}
-
-function drawSelectSide(x, choice, label, controls, leftSide) {
-  const char = characters[choice];
-
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.strokeStyle = char.color;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.roundRect(x - 170, 160, 340, 360, 18);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = "white";
-  ctx.font = "22px Arial";
-  ctx.fillText(label, x, 200);
-
-  ctx.fillStyle = char.color;
-  ctx.font = "38px Arial";
-  ctx.fillText(char.name, x, 255);
-
-  ctx.fillStyle = "rgba(255,255,255,0.75)";
-  ctx.font = "17px Arial";
-  ctx.fillText(char.subtitle, x, 285);
-  ctx.fillText("Switch: " + controls, x, 315);
-
-  // preview fighter
-  const fake = {
-    x: x - 19,
-    y: 380,
-    w: 38,
-    h: 82,
-    facing: leftSide ? 1 : -1,
-    char,
-    hurtTimer: 0,
-    attackTimer: 0,
-    controls: { block: "__none" },
-    comboReset: 0,
-    combo: 0
-  };
-  drawFighter(fake);
-
-  ctx.font = "15px Arial";
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.textAlign = "left";
-  const lines = [
-    "HP: " + char.maxHp,
-    "Speed: " + char.speed,
-    "Range: " + char.attackRange,
-    "M1 combo: " + char.attackDamage.join(" / ")
-  ];
-  for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], x - 110, 490 + i * 24);
-  }
-  ctx.textAlign = "center";
-}
-
-function gameLoop() {
-  if (state === "select") {
-    drawSelect();
-  } else {
-    centerText.textContent = state === "gameover"
-      ? winnerText + " — Press R to return to select"
-      : "P1: WASD + F/G    P2: Arrows + / and .    R: reset";
-
-    drawStage();
-
-    if (hitstop > 0) {
-      hitstop--;
-    } else if (state === "fight") {
-      updateFighter(p1, p2);
-      updateFighter(p2, p1);
-      updateParticles();
-    } else {
-      updateParticles();
-    }
-
-    // face each other when idle-ish
-    if (Math.abs(p1.x - p2.x) > 10 && p1.attackTimer <= 0 && p1.hurtTimer <= 0) p1.facing = p1.x < p2.x ? 1 : -1;
-    if (Math.abs(p1.x - p2.x) > 10 && p2.attackTimer <= 0 && p2.hurtTimer <= 0) p2.facing = p2.x < p1.x ? 1 : -1;
-
-    drawParticles();
-    drawFighter(p1);
-    drawFighter(p2);
-    updateUI();
-  }
-
-  requestAnimationFrame(gameLoop);
-}
-
-gameLoop();
+loop();
 </script>
 </body>
 </html>
